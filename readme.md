@@ -1,5 +1,6 @@
 # Rijndael (AES) Encryption Implementation
-
+Student Name: Mingde Zhou
+Student ID: D24128243
 This project implements the Rijndael encryption algorithm (basis of AES standard), including core C implementation and Python test suite.
 
 ## File Structure
