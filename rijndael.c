@@ -1,10 +1,18 @@
 /*
- * TODO: Mingde Zhou D24128243
- *       
+ * Rijndael (AES) Implementation 
+ * Author: Mingde Zhou
+ * Student Number: D24128243
+ * Description: This file implements the AES-128 block cipher algorithm (Rijndael).
+ *              It contains all the core operations including:
+ *              - Key expansion
+ *              - Encryption/Decryption rounds
+ *              - SubBytes, ShiftRows, MixColumns operations
+ *              - Their inverse operations for decryption
  */
 
 #include <stdlib.h>
-// TODO: Any other files you need to include should go here
+#include <stdio.h>  // For potential debugging output
+#include <string.h> // For memory operations if needed
 
  #include "rijndael.h"
  
@@ -104,7 +112,7 @@ void shift_rows(unsigned char *block) {
   BLOCK_ACCESS(block, 3, 0) = temp;
 }
 
-/* 有限域GF(2^8)上的乘法 */
+/* Multiplication in GF(2^8) finite field */
 unsigned char gmul(unsigned char a, unsigned char b) {
     unsigned char p = 0;
     unsigned char hi_bit_set;
@@ -147,15 +155,15 @@ void invert_sub_bytes(unsigned char *block) {
 }
 
 void invert_shift_rows(unsigned char *block) {
-  // 第0行不移位
-  // 第1行循环右移1字节
+  // Row 0: no shift
+  // Row 1: rotate right by 1 byte
   unsigned char temp = BLOCK_ACCESS(block, 1, 3);
   BLOCK_ACCESS(block, 1, 3) = BLOCK_ACCESS(block, 1, 2);
   BLOCK_ACCESS(block, 1, 2) = BLOCK_ACCESS(block, 1, 1);
   BLOCK_ACCESS(block, 1, 1) = BLOCK_ACCESS(block, 1, 0);
   BLOCK_ACCESS(block, 1, 0) = temp;
 
-  // 第2行循环右移2字节
+  // Row 2: rotate right by 2 bytes
   temp = BLOCK_ACCESS(block, 2, 0);
   BLOCK_ACCESS(block, 2, 0) = BLOCK_ACCESS(block, 2, 2);
   BLOCK_ACCESS(block, 2, 2) = temp;
@@ -163,7 +171,7 @@ void invert_shift_rows(unsigned char *block) {
   BLOCK_ACCESS(block, 2, 1) = BLOCK_ACCESS(block, 2, 3);
   BLOCK_ACCESS(block, 2, 3) = temp;
 
-  // 第3行循环右移3字节(相当于左移1字节)
+  // Row 3: rotate right by 3 bytes (equivalent to left by 1 byte)
   temp = BLOCK_ACCESS(block, 3, 0);
   BLOCK_ACCESS(block, 3, 0) = BLOCK_ACCESS(block, 3, 1);
   BLOCK_ACCESS(block, 3, 1) = BLOCK_ACCESS(block, 3, 2);
@@ -200,14 +208,14 @@ void add_round_key(unsigned char *block, unsigned char *round_key) {
  * which is a single 128-bit key, it should return a 176-byte
  * vector, containing the 11 round keys one after the other
  */
-/* 辅助函数：对4字节字进行S盒替换 */
+/* Helper: Substitute 4-byte word using S-box */
 void SubWord(unsigned char *word) {
     for (int i = 0; i < 4; i++) {
         word[i] = sbox[word[i]];
     }
 }
 
-/* 辅助函数：对4字节字进行循环左移 */
+/* Helper: Rotate 4-byte word left by 1 byte */
 void RotWord(unsigned char *word) {
     unsigned char tmp = word[0];
     word[0] = word[1];
@@ -216,33 +224,33 @@ void RotWord(unsigned char *word) {
     word[3] = tmp;
 }
 
-/* 密钥扩展实现 */
+/* Key expansion implementation */
 unsigned char *expand_key(unsigned char *cipher_key) {
-    unsigned char *expanded_key = malloc(176); // 11轮×16字节
-    int key_size = 16; // 128位=16字节
+    unsigned char *expanded_key = malloc(176); // 11 rounds × 16 bytes
+    int key_size = 16; // 128 bits = 16 bytes
     
-    // 复制初始密钥
+    // Copy initial key
     for (int i = 0; i < key_size; i++) {
         expanded_key[i] = cipher_key[i];
     }
     
-    // 生成后续轮密钥
+    // Generate subsequent round keys
     for (int i = key_size; i < 176; i += 4) {
         unsigned char temp[4];
         
-        // 获取前4字节
+        // Get previous 4 bytes
         for (int j = 0; j < 4; j++) {
             temp[j] = expanded_key[i + j - 4];
         }
         
-        // 每16字节(1轮密钥)执行一次核心操作
+        // Every 16 bytes (1 round key) perform core operation
         if (i % key_size == 0) {
             RotWord(temp);
             SubWord(temp);
             temp[0] ^= Rcon[i/key_size];
         }
         
-        // 生成新的4字节
+        // Generate new 4 bytes
         for (int j = 0; j < 4; j++) {
             expanded_key[i + j] = expanded_key[i + j - key_size] ^ temp[j];
         }
@@ -260,15 +268,15 @@ unsigned char *aes_encrypt_block(unsigned char *plaintext, unsigned char *key) {
     unsigned char *expanded_key = expand_key(key);
     unsigned char block[BLOCK_SIZE];
     
-    // 复制明文到工作块
+    // Copy plaintext to working block
     for (int i = 0; i < BLOCK_SIZE; i++) {
         block[i] = plaintext[i];
     }
     
-    // 初始轮密钥加
+    // Initial round key addition
     add_round_key(block, expanded_key);
     
-    // 9轮标准轮
+    // 9 standard rounds
     for (int round = 1; round <= 9; round++) {
         sub_bytes(block);
         shift_rows(block);
@@ -276,12 +284,12 @@ unsigned char *aes_encrypt_block(unsigned char *plaintext, unsigned char *key) {
         add_round_key(block, expanded_key + (round * BLOCK_SIZE));
     }
     
-    // 最终轮(无列混淆)
+    // Final round (no mix columns)
     sub_bytes(block);
     shift_rows(block);
     add_round_key(block, expanded_key + (10 * BLOCK_SIZE));
     
-    // 复制结果到输出
+    // Copy result to output
     for (int i = 0; i < BLOCK_SIZE; i++) {
         output[i] = block[i];
     }
@@ -295,15 +303,15 @@ unsigned char *aes_decrypt_block(unsigned char *ciphertext, unsigned char *key) 
     unsigned char *expanded_key = expand_key(key);
     unsigned char block[BLOCK_SIZE];
     
-    // 复制密文到工作块
+    // Copy ciphertext to working block
     for (int i = 0; i < BLOCK_SIZE; i++) {
         block[i] = ciphertext[i];
     }
     
-    // 初始轮密钥加(使用最后一轮密钥)
+    // Initial round key addition (using last round key)
     add_round_key(block, expanded_key + (10 * BLOCK_SIZE));
     
-    // 9轮标准轮
+    // 9 standard rounds
     for (int round = 9; round >= 1; round--) {
         invert_shift_rows(block);
         invert_sub_bytes(block);
@@ -311,12 +319,12 @@ unsigned char *aes_decrypt_block(unsigned char *ciphertext, unsigned char *key) 
         invert_mix_columns(block);
     }
     
-    // 最终轮(无逆列混淆)
+    // Final round (no inverse mix columns)
     invert_shift_rows(block);
     invert_sub_bytes(block);
-    add_round_key(block, expanded_key);  // 使用初始轮密钥
+    add_round_key(block, expanded_key);  // Use initial round key
     
-    // 复制结果到输出
+    // Copy result to output
     for (int i = 0; i < BLOCK_SIZE; i++) {
         output[i] = block[i];
     }

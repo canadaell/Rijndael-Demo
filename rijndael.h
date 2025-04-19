@@ -1,6 +1,10 @@
 /*
- * TODO: Add your name and student number here, along with
- *       a brief description of this code.
+ * Rijndael (AES) Implementation Header
+ * Author: Mingde Zhou
+ * Student Number: D24128243
+ * Description: This header file defines the interface for AES-128 block encryption/decryption
+ *              using the Rijndael algorithm. It provides functions for encrypting and decrypting
+ *              128-bit blocks of data with a 128-bit key.
  */
 
 #ifndef RIJNDAEL_H
